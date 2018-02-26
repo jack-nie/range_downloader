@@ -239,10 +239,11 @@ func main() {
 		var bytes []byte
 		var fileName string
 		for i := 0; i < 6; i++ {
-			fmt.Print("Enter url: ")
 			if i == 5 {
 				fmt.Println("You entered invalid url too many times! exit!")
+				return
 			}
+			fmt.Print("Enter url: ")
 			if _, err := fmt.Scan(&bytes); err == nil {
 				if checkValidURL(string(bytes)) {
 					fileName = getFileName(string(bytes))
