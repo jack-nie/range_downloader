@@ -9,37 +9,37 @@ import (
 	"io"
 	"net/url"
 	"strings"
+	"encoding/json"
+	"flag"
 )
 
+const chunkSize = 1024 
+var config *Config
+var useProxy = flag.Bool("use-proxy", false, "weather to use a proxy during downloading")
+var useHTTP = flag.Bool("use-http", false, "to use a http proxy during downloading")
+var useHTTPS = flag.Bool("use-https", false, "to use a https proxy during downloading")
 
-func main() {
-	for {
-		var bytes []byte
-		var fileName string
-		for i := 0; i < 6; i++ {
-			fmt.Print("Enter url: ")
-			if i == 5 {
-				fmt.Println("You entered invalid url too many times! exit!")
-			}
-			if _, err := fmt.Scan(&bytes); err == nil {
-				if checkValidURL(string(bytes)) {
-					fileName = getFileName(string(bytes))
-					err := downLoad(string(bytes), fileName)
-					if err != nil {
-						fmt.Println(err)
-						fmt.Println("Error occured while downloading: ")
-
-						os.Exit(-1)
-					}
-				} else {
-					fmt.Println("Invalid url, please enter an valid url!")
-				}
-			}
-		}
-	}
+func init() {
+	flag.BoolVar(useHTTP, "http", false, "short for use-http")
+	flag.BoolVar(useHTTPS, "https", false, "short for use-https")
+	config = getConfig("./config.json")
 }
 
-const chunkSize = 1024 
+type Config struct {
+	HTTPProxy string `json:"http"`
+	HTTPSProxy string `json:"https"`
+}
+
+func getConfig(filePath string) *Config {
+	raw, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	var c Config
+	json.Unmarshal(raw, &c)
+	return &c
+}
 
 func httpGet(url string, start, end interface{}) (*http.Response, error) {
 	client := &http.Client{ }
@@ -204,7 +204,6 @@ func getFileName(uri string) string {
 	return fileName
 }
 
-
 func splitLength(length int) (int, int) {
 	if length < chunkSize {
 		return length, 0
@@ -212,4 +211,52 @@ func splitLength(length int) (int, int) {
 	chunks := length / chunkSize
 	remLength := length % chunkSize
 	return chunks, remLength
+}
+
+func main() {
+	flag.Parse()
+	if *useProxy {
+		var urlString string
+
+		if *useHTTPS {
+			urlString = config.HTTPSProxy
+		} else if *useHTTP {
+			urlString = config.HTTPProxy
+		} else {
+			urlString = config.HTTPSProxy
+		}
+
+		proxyURL, err := url.Parse(urlString)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
+
+		http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(proxyURL)}
+	}
+	
+	for {
+		var bytes []byte
+		var fileName string
+		for i := 0; i < 6; i++ {
+			fmt.Print("Enter url: ")
+			if i == 5 {
+				fmt.Println("You entered invalid url too many times! exit!")
+			}
+			if _, err := fmt.Scan(&bytes); err == nil {
+				if checkValidURL(string(bytes)) {
+					fileName = getFileName(string(bytes))
+					err := downLoad(string(bytes), fileName)
+					if err != nil {
+						fmt.Println(err)
+						fmt.Println("Error occured while downloading!")
+
+						os.Exit(-1)
+					}
+				} else {
+					fmt.Println("Invalid url, please enter an valid url!")
+				}
+			}
+		}
+	}
 }
