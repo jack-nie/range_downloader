@@ -1,19 +1,20 @@
 package main
 
 import (
-	"io/ioutil"
-	"net/http"
-	"fmt"
-	"strconv"
-	"os"
-	"io"
-	"net/url"
-	"strings"
 	"encoding/json"
 	"flag"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"os"
+	"strconv"
+	"strings"
 )
 
-const chunkSize = 1024 
+const chunkSize = 1024
+
 var config *Config
 var useProxy = flag.Bool("use-proxy", false, "weather to use a proxy during downloading")
 var useHTTP = flag.Bool("use-http", false, "to use a http proxy during downloading")
@@ -26,7 +27,7 @@ func init() {
 }
 
 type Config struct {
-	HTTPProxy string `json:"http"`
+	HTTPProxy  string `json:"http"`
 	HTTPSProxy string `json:"https"`
 }
 
@@ -42,7 +43,7 @@ func getConfig(filePath string) *Config {
 }
 
 func httpGet(url string, start, end interface{}) (*http.Response, error) {
-	client := &http.Client{ }
+	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -58,7 +59,7 @@ func httpGet(url string, start, end interface{}) (*http.Response, error) {
 	case bool:
 		switch end.(type) {
 		case int:
-		 req.Header.Add("Range", fmt.Sprintf("bytes=-%s", strconv.Itoa(end.(int))))
+			req.Header.Add("Range", fmt.Sprintf("bytes=-%s", strconv.Itoa(end.(int))))
 		}
 	}
 	resp, err := client.Do(req)
@@ -68,7 +69,7 @@ func httpGet(url string, start, end interface{}) (*http.Response, error) {
 	return resp, nil
 }
 
-func httpRangeHead(url string) (*http.Response, error){
+func httpRangeHead(url string) (*http.Response, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest("HEAD", url, nil)
 	if err != nil {
@@ -86,7 +87,7 @@ func httpRangeHead(url string) (*http.Response, error){
 func supportRangeTransfer(url string) (length int64, err error) {
 	resp, err := httpRangeHead(url)
 	if err != nil {
-		return 
+		return
 	}
 
 	switch resp.StatusCode {
@@ -110,10 +111,10 @@ func downLoad(url, fileName string) error {
 		if os.IsNotExist(err) {
 			chunks, remLength = splitLength(int(length))
 		} else {
-			chunks, remLength = splitLength(int(length-fileInfo.Size()))
+			chunks, remLength = splitLength(int(length - fileInfo.Size()))
 		}
 		for i := 0; i < chunks; i++ {
-			err := downLoadFileChunk(url, i * chunkSize, (i+1)*chunkSize, fileName)
+			err := downLoadFileChunk(url, i*chunkSize, (i+1)*chunkSize, fileName)
 			if err != nil {
 				return err
 			}
@@ -126,13 +127,13 @@ func downLoad(url, fileName string) error {
 		err := downLoadFile(url, fileName)
 		if err != nil {
 			return err
-	    }
+		}
 	}
 	return nil
 }
 
 func downLoadFile(url, fileName string) error {
-    var file *os.File
+	var file *os.File
 	_, err := os.Stat(fileName)
 	if !os.IsNotExist(err) {
 		err = os.Remove(fileName)
@@ -150,6 +151,7 @@ func downLoadFile(url, fileName string) error {
 		return err
 	}
 	_, err = io.Copy(file, resp.Body)
+	defer resp.Body.Close()
 	return err
 }
 
@@ -166,7 +168,7 @@ func downLoadFileChunk(url string, start, end interface{}, fileName string) (err
 	if os.IsNotExist(err) {
 		file, err = os.Create(fileName)
 		if err != nil {
-			return 
+			return
 		}
 		io.Copy(file, resp.Body)
 	} else {
@@ -175,6 +177,7 @@ func downLoadFileChunk(url string, start, end interface{}, fileName string) (err
 			return
 		}
 		bytes, err = ioutil.ReadAll(resp.Body)
+		defer resp.Body.Close()
 		if err != nil {
 			return
 		}
@@ -207,7 +210,7 @@ func getFileName(uri string) string {
 func splitLength(length int) (int, int) {
 	if length < chunkSize {
 		return length, 0
-	} 
+	}
 	chunks := length / chunkSize
 	remLength := length % chunkSize
 	return chunks, remLength
@@ -234,7 +237,7 @@ func main() {
 
 		http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(proxyURL)}
 	}
-	
+
 	for {
 		var bytes []byte
 		var fileName string
